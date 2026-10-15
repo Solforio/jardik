@@ -1,0 +1,27 @@
+# Example extraction request: office buildings of Building Data Genome 2, calendar year 2016.
+# Replay with:  jardik dataset extract --request configs/requests/example_offices_2016.yaml
+name: offices_2016
+task: forecasting
+dataset_id: bdg2
+
+usage_categories: [office]
+n_buildings: 30
+sampling: stratified_site   # spread the buildings over the sites
+seed: 42
+
+start: 2016-01-01           # UTC, inclusive
+end: 2017-01-01             # UTC, exclusive
+granularity_s: 3600
+
+quality:
+  max_missing_ratio: 0.1     # share of hourly slots still empty after imputation
+  imputation: linear_short_gaps
+  max_gap_hours: 3
+  max_imputed_ratio: 0.05
+
+weather:
+  variables: [temp_c, dewpoint_c, wind_ms, wind_dir_deg, pressure_msl_hpa]
+  matching: {method: exact, min_coverage: 0.9}
+
+export:
+  format: parquet

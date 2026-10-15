@@ -1,0 +1,36 @@
+# Building Data Genome Project 2 (BDG2). Licence: CC BY-SA 4.0 (see LICENSES.md).
+# Everything here is a DECLARED rule: it is applied visibly and recorded in every manifest.
+
+# Cleaned file: outliers, long zero runs and all-zero electricity were replaced by NaN by the
+# dataset authors. Use electricity.csv (raw) by passing --variant raw to `dataset fetch`.
+electricity_file: electricity_cleaned.csv
+
+# "local_standard": timestamps are local standard time with DST ignored (one continuous hourly
+# clock, 17,544 rows). Verified: no gap or repeat exists at any DST change in the file.
+timestamp_clock: local_standard
+
+# BDG2 'primaryspaceusage' -> Jardik usage category. Anything not listed becomes 'other' and is
+# reported. Residence halls and dormitories are student housing, not homes.
+usage_map:
+  Office: office
+  Retail: shop
+  Food sales and service: shop
+usage_sub_map:
+  "Lodging/residential|Multifamily Housing": condominium
+
+# Corrections to the source metadata. Only with an evidence-based reason.
+site_overrides:
+  Wolf:
+    lng: -6.2603
+    reason: >-
+      Longitude has the wrong sign: the site is in Europe/Dublin at latitude 53.35, and
+      +6.26 degrees is in the Netherlands/Germany while -6.26 degrees is Dublin.
+
+# Rough region of each timezone, used to catch coordinates that cannot be right.
+bbox_by_timezone:
+  US/Eastern: {min_lat: 24.0, max_lat: 50.0, min_lon: -85.0, max_lon: -66.0}
+  US/Central: {min_lat: 25.0, max_lat: 50.0, min_lon: -105.0, max_lon: -84.0}
+  US/Mountain: {min_lat: 31.0, max_lat: 50.0, min_lon: -116.0, max_lon: -102.0}
+  US/Pacific: {min_lat: 32.0, max_lat: 50.0, min_lon: -125.0, max_lon: -114.0}
+  Europe/London: {min_lat: 49.5, max_lat: 61.0, min_lon: -8.5, max_lon: 2.0}
+  Europe/Dublin: {min_lat: 51.0, max_lat: 56.0, min_lon: -11.0, max_lon: -5.5}

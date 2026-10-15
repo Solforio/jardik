@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+
+# Secrets
+.env
+
+# Data and outputs (never commit raw datasets or generated artefacts)
+data/
+outputs/
+review/
+*.mp3
+*.parquet
+*.duckdb
+*.duckdb.wal
+
+# Editors / OS
+.vscode/
+.idea/
+Thumbs.db

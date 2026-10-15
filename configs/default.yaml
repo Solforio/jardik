@@ -1,0 +1,38 @@
+# Default configuration. Paths are relative to the project root (or JARDIK_HOME).
+paths:
+  data_dir: data
+  outputs_dir: outputs
+
+logging:
+  level: INFO
+  log_to_file: false
+
+# Explicit DST policy for naive local timestamps. "raise" forces the user to decide.
+time_policy:
+  ambiguous: raise
+  nonexistent: raise
+
+# Providers are chosen here, never hard-coded in models.
+providers:
+  weather: file
+  solar: null
+  market: null
+  cache_enabled: true
+  # weather: file needs a file_weather section, for example:
+  # file_weather:
+  #   path: data/raw/weather.csv
+  #   source: my_weather
+  #   timestamp_col: timestamp
+  #   timezone: Europe/Madrid        # only for timestamps without a UTC offset
+  #   columns: {temp_c: airTemperature, rh_pct: humidity}
+  #   units: {temp_c: degC, rh_pct: "%"}
+  #   lat: 40.4168
+  #   lon: -3.7038
+  # weather: open_meteo is free for NON-COMMERCIAL use only (see LICENSES.md).
+  open_meteo:
+    forecast_ttl_hours: 3
+
+forecast:
+  horizon_h: 24
+  granularity_s: 3600
+  target_unit: kWh
