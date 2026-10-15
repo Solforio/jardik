@@ -118,3 +118,57 @@ def test_use_after_close_is_an_error(tmp_path: Path):
 def test_parent_folder_is_created(tmp_path: Path):
     with Catalogue(tmp_path / "deep" / "dir" / "cat.duckdb") as cat:
         assert cat.list_datasets() == []
+
+
+# --- forecast runs ----------------------------------------------------------------------------
+
+
+def _run_manifest(run_id="gbm-abc", passed=True, created="2026-10-16T10:00:00+00:00") -> dict:
+    return {
+        "run_id": run_id,
+        "kind": "forecast_backtest",
+        "name": "gbm",
+        "created_at": created,
+        "extraction_id": "offices-abc",
+        "config_hash": "abc",
+        "output_dir": "outputs/runs/" + run_id,
+        "config": {"name": "gbm", "seed": 42},
+        "gate": {"passed": passed, "challenger": "lightgbm", "best_baseline": "seasonal_naive_168"},
+        "metrics": [{"scenario": "test_both", "model": "lightgbm", "mae": 1.5}],
+        "models": [{"name": "lightgbm", "kind": "lightgbm", "path": "models/lightgbm"}],
+    }
+
+
+def test_register_and_read_a_run(tmp_path: Path):
+    with Catalogue(tmp_path / "cat.duckdb") as cat:
+        cat.register_run(_run_manifest())
+        [run] = cat.list_runs()
+        assert run["run_id"] == "gbm-abc" and run["gate_passed"] is True
+        assert run["challenger"] == "lightgbm" and run["best_baseline"] == "seasonal_naive_168"
+        full = cat.get_run("gbm-abc")
+        assert full["config"]["seed"] == 42 and full["metrics"][0]["mae"] == 1.5
+        assert [m["name"] for m in cat.run_models("gbm-abc")] == ["lightgbm"]
+        assert cat.get_run("nope") is None
+
+
+def test_rerunning_replaces_the_run_and_its_models(tmp_path: Path):
+    with Catalogue(tmp_path / "cat.duckdb") as cat:
+        cat.register_run(_run_manifest(passed=True))
+        second = _run_manifest(passed=False) | {"models": []}
+        cat.register_run(second)
+        assert len(cat.list_runs()) == 1
+        assert cat.list_runs()[0]["gate_passed"] is False
+        assert cat.run_models("gbm-abc") == []
+
+
+def test_runs_are_listed_newest_first_and_filtered_by_extraction(tmp_path: Path):
+    with Catalogue(tmp_path / "cat.duckdb") as cat:
+        cat.register_run(_run_manifest("old-1", created="2026-01-01T00:00:00+00:00"))
+        cat.register_run(_run_manifest("new-1", created="2026-06-01T00:00:00+00:00"))
+        other = _run_manifest("other-1") | {"extraction_id": "other-extraction"}
+        cat.register_run(other)
+        assert [r["run_id"] for r in cat.list_runs()] == ["other-1", "new-1", "old-1"]
+        assert {r["run_id"] for r in cat.list_runs(extraction_id="offices-abc")} == {
+            "old-1",
+            "new-1",
+        }

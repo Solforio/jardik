@@ -61,6 +61,12 @@ class QualityRequest(_Strict):
         description="Max share of slots still without data after imputation.",
     )
     max_imputed_ratio: float = Field(default=0.05, ge=0, le=1)
+    max_near_zero_ratio: float = Field(
+        default=0.1,
+        ge=0,
+        le=1,
+        description="Max share of readings at or below 1 % of the building's median (dead meter).",
+    )
     imputation: Literal["none", "linear_short_gaps"] = "none"
     max_gap_hours: int = Field(default=3, ge=1)
 

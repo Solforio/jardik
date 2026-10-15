@@ -102,3 +102,14 @@ def mini_bdg2(tmp_path):
         )
     pd.concat(weather, ignore_index=True).to_csv(data_dir / "weather.csv", index=False)
     return data_dir
+
+
+# --- synthetic merged_training_dataset for the forecasting tests ------------------------------
+
+from synthetic import make_merged_frame  # noqa: E402
+
+
+@pytest.fixture
+def make_merged():
+    """Factory of a merged-dataset-shaped frame (see tests/synthetic.py)."""
+    return make_merged_frame

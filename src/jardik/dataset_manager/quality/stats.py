@@ -13,6 +13,18 @@ def _longest_run(mask: np.ndarray) -> int:
     return int((np.flatnonzero(edges == -1) - np.flatnonzero(edges == 1)).max())
 
 
+def _near_zero_ratio(measured: pd.Series) -> float:
+    """Share of measured values at or below 1 % of the typical (median) value.
+
+    A partial or dead meter shows long stretches of readings like 0.0001 kWh that exact-zero
+    checks miss; a real office never drops that far below its median load.
+    """
+    if measured.empty:
+        return float("nan")
+    threshold = max(0.01 * float(measured.median()), 0.0)
+    return float((measured <= threshold).mean())
+
+
 def summarise_series(
     raw: pd.Series, filled: pd.Series, imputed: pd.Series, step_s: int = 3600
 ) -> dict[str, float | int]:
@@ -47,4 +59,5 @@ def summarise_series(
         "residual_missing_ratio": ratio(residual),
         "longest_gap_h": _longest_run(filled.isna().to_numpy()) * step_s / 3600.0,
         "zero_ratio": float((measured == 0).mean()) if len(measured) else float("nan"),
+        "near_zero_ratio": _near_zero_ratio(measured),
     }

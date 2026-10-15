@@ -36,7 +36,10 @@ Copy-Item .env.example .env   # then fill in the keys you need
 - M2 (Dataset Manager v1) done: DuckDB catalogue, verified BDG2 download, selection filters and quality
   screening, weather-building-time matching, merged training dataset, manifest, quality and distribution
   reports, PDF report, interactive and YAML requests (`jardik dataset ...`).
-- Next: M3 forecasting baselines and gradient boosting on Dataset Manager outputs.
+- M3 (forecasting) done: causal features, baselines, LightGBM with quantiles, split by building and
+  time, gate, PDF report and readable review (`jardik forecast ...`). On two years of offices LightGBM
+  beats the best baseline by about 32 % MAE on unseen buildings and period.
+- Next: M4 client data ingestion and weather enrichment.
 
 ## Dataset Manager quick start
 
@@ -47,3 +50,14 @@ Copy-Item .env.example .env   # then fill in the keys you need
 .\.venv\Scripts\jardik.exe dataset extract --interactive      # answer questions instead
 .\.venv\Scripts\jardik.exe dataset extractions                # what has been extracted
 ```
+
+## Forecasting quick start
+
+```powershell
+.\.venv\Scripts\jardik.exe dataset extract --request configs\requests\offices_2016_2017.yaml
+.\.venv\Scripts\jardik.exe forecast run --config configs\forecast\offices_baselines_gbm.yaml
+.\.venv\Scripts\jardik.exe forecast runs                       # list runs
+.\.venv\Scripts\jardik.exe forecast review                     # readable copy in review\
+```
+
+The run config names the extraction (`extraction_id`, see `jardik dataset extractions`).

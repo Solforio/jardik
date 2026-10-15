@@ -6,57 +6,17 @@ from pathlib import Path
 from typing import Any
 from xml.sax.saxutils import escape
 
-from reportlab import rl_config
 from reportlab.graphics.charts.barcharts import VerticalBarChart
 from reportlab.graphics.shapes import Drawing
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
-from reportlab.platypus import (
-    KeepTogether,
-    Paragraph,
-    SimpleDocTemplate,
-    Spacer,
-    Table,
-    TableStyle,
-)
+from reportlab.platypus import KeepTogether, Paragraph, Spacer
 
-from jardik.core.formatting import format_number_es, format_percent_es
+from jardik.core.formatting import format_percent_es
+from jardik.core.pdfkit import BODY, BULLET, H1, SMALL, TITLE, build_document, kv, num, para, table
 
-_STYLES = getSampleStyleSheet()
-BODY = ParagraphStyle("body", parent=_STYLES["BodyText"], fontSize=9, leading=12)
-SMALL = ParagraphStyle("small", parent=BODY, fontSize=7.5, leading=9.5)
-H1 = ParagraphStyle("h1", parent=_STYLES["Heading2"], fontSize=12, spaceBefore=10, spaceAfter=4)
-TITLE = ParagraphStyle("title", parent=_STYLES["Title"], fontSize=18, spaceAfter=6)
-BULLET = ParagraphStyle("bullet", parent=BODY, leftIndent=10, bulletIndent=0)
+_p, _table, _kv, _n = para, table, kv, num
 MAX_ROWS = 60
-
-
-def _p(text: object, style: ParagraphStyle = BODY) -> Paragraph:
-    return Paragraph(escape(str(text)), style)
-
-
-def _table(
-    rows: list[list[object]], widths: list[float], header: bool = True, font: float = 7.5
-) -> Table:
-    style = ParagraphStyle("cell", parent=SMALL, fontSize=font, leading=font + 2)
-    cells = [[Paragraph(escape(str(c)), style) for c in row] for row in rows]
-    table = Table(cells, colWidths=[w * mm for w in widths], repeatRows=1 if header else 0)
-    commands = [
-        ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 3),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
-    ]
-    if header:
-        commands.append(("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e8eef5")))
-    table.setStyle(TableStyle(commands))
-    return table
-
-
-def _kv(pairs: list[tuple[str, object]]) -> Table:
-    return _table([[k, v] for k, v in pairs], [48, 124], header=False, font=8)
 
 
 def _bar_chart(counts: dict[str, int]) -> Drawing:
@@ -75,10 +35,6 @@ def _bar_chart(counts: dict[str, int]) -> Drawing:
     return drawing
 
 
-def _n(value: object, decimals: int = 0) -> str:
-    return format_number_es(value, decimals)  # type: ignore[arg-type]
-
-
 def _q(block: dict[str, float] | None, key: str = "median", pct: bool = False) -> str:
     if not block:
         return "n/a"
@@ -92,22 +48,11 @@ def build_pdf(
     distribution: dict[str, Any],
 ) -> None:
     """Write the report. Deterministic: the same inputs give byte-identical output."""
-    previous = rl_config.invariant
-    rl_config.invariant = 1
-    try:
-        doc = SimpleDocTemplate(
-            str(path),
-            pagesize=A4,
-            leftMargin=19 * mm,
-            rightMargin=19 * mm,
-            topMargin=16 * mm,
-            bottomMargin=16 * mm,
-            title=f"Extraction report {manifest['extraction_id']}",
-            author="Jardik",
-        )
-        doc.build(_story(manifest, quality, distribution))
-    finally:
-        rl_config.invariant = previous
+    build_document(
+        path,
+        _story(manifest, quality, distribution),
+        f"Extraction report {manifest['extraction_id']}",
+    )
 
 
 def _story(manifest: dict[str, Any], quality: dict[str, Any], dist: dict[str, Any]) -> list[Any]:

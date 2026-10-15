@@ -81,6 +81,7 @@ def build_quality_report(
         "residual_missing_ratio",
         "longest_gap_h",
         "zero_ratio",
+        "near_zero_ratio",
         "first_value_ts",
         "last_value_ts",
     ]

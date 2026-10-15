@@ -12,6 +12,7 @@ from jardik.core.config import AppConfig, ConfigError, config_hash, load_config,
 from jardik.core.logging import get_logger, setup_logging
 from jardik.core.paths import JardikPaths
 from jardik.dataset_manager.cli import dataset_app
+from jardik.forecasting.cli import forecast_app
 from jardik.providers.cli import weather_app
 
 app = typer.Typer(
@@ -23,6 +24,7 @@ app = typer.Typer(
 
 app.add_typer(weather_app, name="weather")
 app.add_typer(dataset_app, name="dataset")
+app.add_typer(forecast_app, name="forecast")
 
 log = get_logger("cli")
 

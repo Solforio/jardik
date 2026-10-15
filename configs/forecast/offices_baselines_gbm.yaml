@@ -1,0 +1,16 @@
+# Backtest of the model ladder (baselines, then LightGBM) on two years of offices.
+# Replay with:  jardik forecast run --config configs/forecast/offices_baselines_gbm.yaml
+name: offices_gbm
+extraction_id: offices_2y-abc77e7b6058
+
+split:
+  train_end: 2017-01-01      # train on 2016 ...
+  val_end: 2017-04-01        # ... stop the boosting early on Jan-Mar 2017 ...
+  # test_end: omitted         # ... and test on Apr-Dec 2017
+  by: building               # hold out whole buildings (use "site" for the harsher check)
+  val_building_frac: 0.15
+  test_building_frac: 0.25
+  seed: 42
+
+quantiles: [0.1, 0.5, 0.9]
+seed: 42

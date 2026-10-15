@@ -132,8 +132,9 @@ class Forecaster(Protocol):
     """Every rung of the model ladder implements this, so backtests are model-agnostic."""
 
     name: str
+    supports_quantiles: bool
 
-    def fit(self, train: pd.DataFrame) -> None: ...
+    def fit(self, train: pd.DataFrame, valid: pd.DataFrame | None = None) -> None: ...
 
     def predict(self, features: pd.DataFrame) -> pd.Series:
         """Point forecast in kWh per hour, indexed like `features`."""

@@ -114,6 +114,9 @@ that influences the result except the output folder; the extraction id is `<name
 - `quality.max_missing_ratio` is the share of slots still empty AFTER the optional imputation;
   `quality.max_imputed_ratio` is the share of imputed slots. Imputation (`linear_short_gaps`) fills only
   interior gaps of at most `max_gap_hours`.
+- `quality.max_near_zero_ratio` (default 0.1): max share of readings at or below 1 % of the building's
+  median. Catches partial or dead meters that exact-zero checks miss; the statistic `near_zero_ratio` is
+  in the quality report.
 - `weather.matching`: `method`, `max_time_offset_min`, `max_distance_km`, `min_coverage` (a building
   below it is dropped and replaced by the next candidate).
 - Candidates are ordered deterministically (`random` seeded, `stratified_site`, `first`), so a request
@@ -147,6 +150,29 @@ records the dialect.
   becomes percent with 9 (sky obscured) mapped to 100; values outside the plausible range become NaN.
   Sea-level pressure is `pressure_msl_hpa`, not `pressure_hpa`.
 - No country is given, so holiday flags are not included; contracted power is unknown.
+
+## Forecasting (M3)
+
+Input: the `merged_training_dataset` of an extraction (its SHA-256 is verified before use). Code in
+`src/jardik/forecasting/`.
+
+- **Feature frame** (`build_features`): one row per hourly slot. Keys `building_id`, `site_id`, `ts_utc`,
+  `ts_local`; `target_kwh`; flags `is_measured` (measured, not imputed) and `has_history` (the scale
+  exists); `hours_ahead` (slots since local midnight); `scale_kwh`; raw lags `lag_24 ... lag_672` and
+  `base_kwh` (for baselines); normalised model features `n_lag_*`, `n_last`, `n_mean_24`, `n_std_168`,
+  `n_max_24`, `n_min_24`, `n_base`; calendar, weather and static features. `model_feature_columns` lists
+  what the models see (never raw kWh).
+- **Splits** (`SplitSpec`): UTC dates `train_end`, `val_end`, optional `test_end`; fractions of buildings
+  for validation and test; `by: building | site`; `seed`. Scenarios: train, val, test_time,
+  test_building, test_both.
+- **Run outputs** in `outputs/runs/<run_id>/` (`.partial` folder, moved into place on success):
+  `predictions.parquet` (point and quantile forecasts of every model), `metrics.csv`,
+  `macro_metrics.csv`, `per_building_metrics.csv`, `skill.csv`, `feature_importance.csv`,
+  `split_roles.csv`, `gate.json`, `run_manifest.json` (config hash, extraction checksum, licence,
+  limitations, checksums), `forecast_report.pdf`, `figures/`, `models/lightgbm/`.
+- **Metrics** (`forecasting/metrics.py`): MAE, RMSE, CV(RMSE) = RMSE / mean load, NMBE with the ASHRAE
+  Guideline 14 sign (positive = under-forecast), pinball loss, 80 % interval coverage and width, skill
+  score = 1 - model error / baseline error. Pairs with a missing value are ignored; no pair gives NaN.
 
 ## Added in later milestones
 

@@ -48,4 +48,5 @@ Run from the project root in PowerShell. The virtual environment lives in `.venv
 - Format: `.\.venv\Scripts\ruff.exe format src tests`
 - CLI: `.\.venv\Scripts\jardik.exe --help` (or `python -m jardik`)
 - Datasets: `jardik dataset fetch bdg2`, `jardik dataset extract --request FILE` (or `--interactive`)
+- Forecasting: `jardik forecast run --config FILE`, `jardik forecast runs`, `jardik forecast review`
 - Weather: `jardik weather fetch --lat .. --lon .. --start .. --end ..` (provider chosen in the config)

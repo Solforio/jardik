@@ -32,6 +32,19 @@ _SCHEMA = (
     )
     """,
     """
+    CREATE TABLE IF NOT EXISTS runs (
+        run_id VARCHAR PRIMARY KEY,
+        kind VARCHAR, name VARCHAR, created_at VARCHAR, extraction_id VARCHAR,
+        config_hash VARCHAR, output_dir VARCHAR, gate_passed BOOLEAN,
+        challenger VARCHAR, best_baseline VARCHAR, metrics_json VARCHAR, config_json VARCHAR
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS models (
+        run_id VARCHAR, model_name VARCHAR, kind VARCHAR, path VARCHAR
+    )
+    """,
+    """
     CREATE TABLE IF NOT EXISTS extraction_buildings (
         extraction_id VARCHAR, building_id VARCHAR, site_id VARCHAR,
         usage_category VARCHAR, rank BIGINT
@@ -178,4 +191,60 @@ class Catalogue:
             "SELECT building_id, site_id, usage_category, rank FROM extraction_buildings "
             "WHERE extraction_id = ? ORDER BY rank",
             [extraction_id],
+        )
+
+    # --- forecast runs -------------------------------------------------------------------
+    def register_run(self, manifest: dict[str, Any]) -> None:
+        run_id = manifest["run_id"]
+        gate = manifest.get("gate", {})
+        self.con.execute("DELETE FROM models WHERE run_id = ?", [run_id])
+        self.con.execute("DELETE FROM runs WHERE run_id = ?", [run_id])
+        self.con.execute(
+            "INSERT INTO runs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                run_id,
+                manifest["kind"],
+                manifest["name"],
+                manifest["created_at"],
+                manifest["extraction_id"],
+                manifest["config_hash"],
+                manifest["output_dir"],
+                gate.get("passed"),
+                gate.get("challenger"),
+                gate.get("best_baseline"),
+                json.dumps(manifest.get("metrics", []), default=str),
+                json.dumps(manifest.get("config", {}), default=str),
+            ],
+        )
+        for model in manifest.get("models", []):
+            self.con.execute(
+                "INSERT INTO models VALUES (?, ?, ?, ?)",
+                [run_id, model["name"], model.get("kind"), model.get("path")],
+            )
+
+    def list_runs(self, extraction_id: str | None = None) -> list[dict[str, Any]]:
+        query = (
+            "SELECT run_id, kind, name, created_at, extraction_id, gate_passed, challenger, "
+            "best_baseline, output_dir FROM runs"
+        )
+        params: list[Any] = []
+        if extraction_id is not None:
+            query += " WHERE extraction_id = ?"
+            params.append(extraction_id)
+        return self._rows(query + " ORDER BY created_at DESC, run_id", params)
+
+    def get_run(self, run_id: str) -> dict[str, Any] | None:
+        rows = self._rows("SELECT * FROM runs WHERE run_id = ?", [run_id])
+        if not rows:
+            return None
+        row = rows[0]
+        row["metrics"] = json.loads(row.pop("metrics_json"))
+        row["config"] = json.loads(row.pop("config_json"))
+        return row
+
+    def run_models(self, run_id: str) -> list[dict[str, Any]]:
+        return self._rows(
+            "SELECT model_name AS name, kind, path FROM models "
+            "WHERE run_id = ? ORDER BY model_name",
+            [run_id],
         )

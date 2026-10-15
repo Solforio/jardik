@@ -69,6 +69,7 @@ def screen_quality(
     for step, column, limit in (
         ("max_missing_ratio", "residual_missing_ratio", request.quality.max_missing_ratio),
         ("max_imputed_ratio", "imputed_ratio", request.quality.max_imputed_ratio),
+        ("max_near_zero_ratio", "near_zero_ratio", request.quality.max_near_zero_ratio),
     ):
         ok = current[column] <= limit
         for row in current[~ok].itertuples(index=False):

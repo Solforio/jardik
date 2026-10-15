@@ -68,3 +68,59 @@ Short records of decisions that shape the project. Changes to `docs/PLAN.md` are
 - **PDF is deterministic** (reportlab `invariant` mode), so the same inputs give identical bytes.
 - Real-data acceptance (offices 2016, 30 buildings, 12 sites): 263,520 rows = 30 x 8,784 h; 60 DST days
   audited with every record kept; weather coverage at least 99.7 %.
+
+## 2026-10-16: M3 forecasting baselines and gradient boosting
+
+- **Task definition:** day-ahead hourly load forecast issued at LOCAL MIDNIGHT for the coming local day
+  (23, 24 or 25 slots on DST days). Target: kWh per hour.
+- **No look-ahead, proven by test:** a feature of slot T may use load strictly before the origin
+  (lags are masked when `lag_k <= hours_ahead`, statistics end at the origin) plus the weather of slot T
+  and of the day. The decisive test overwrites ALL load from the origin onwards and checks that no feature
+  of the forecast day changes. Imputed values are never used as features (interpolation looks ahead of a
+  gap).
+- **Normalisation:** load-like features are divided by `scale_kwh` (mean load of the 168 h before the
+  origin) and the model predicts load / scale, so one model serves buildings of very different size.
+- **Evaluation:** buildings AND time are held out. Scenarios: `train`, `val` (early stopping only),
+  `test_time` (known buildings, unseen future), `test_building` (unseen buildings, known period) and
+  `test_both` (unseen buildings AND future: the main result). All models are scored on exactly the same
+  rows. `by: site` holds out whole sites (harsher).
+- **Gate (each model beats the previous rung):** the challenger must beat the best baseline of the main
+  scenario on MAE, RMSE and the MEDIAN building CV(RMSE). The median, not the mean: a building with a tiny
+  mean load has an enormous CV(RMSE) (one test building had 802) and dominated the mean.
+- **NMBE uses the ASHRAE Guideline 14 sign** (positive = under-forecast), as the user works with energy
+  models; documented in the metrics module, the PDF and the workbook.
+- **Data-quality finding made by the model (not by the screen):** about 14 of 239 candidate offices
+  (mostly site Lamb) had 20-45 % of their readings at ~0.0001 kWh and 3-7 kWh/m2/year against a median of
+  105: partial or dead meters that the exact-zero check missed. Added `quality.max_near_zero_ratio`
+  (default 0.1; share of readings at or below 1 % of the building's median). This changes the request hash
+  of every extraction that does not set it.
+- **The plain L2 loss failed on real data.** With it the boosting stopped after 13-18 trees (early stopping
+  on validation) and LightGBM lost to the baselines (MAE +24 % worse, better than the baselines in 3 of 25
+  buildings). Cause: the load/scale ratio has heavy tails, so the squared loss is dominated by a few
+  extreme rows. Robust losses fixed it.
+- **How the defaults were chosen (on VALIDATION, never on the test set).** Grid on 100 offices, train 2016,
+  validate Jan-Mar 2017 (unseen buildings), test Apr-Dec 2017:
+
+  | target | loss | trees | val MAE | val RMSE | test MAE (shown, not used) |
+  |---|---|---|---|---|---|
+  | ratio | L2 | 16 | 10.23 | - | 18.52 |
+  | ratio | L1 | 130 | 6.523 | 11.079 | 10.77 |
+  | ratio | Huber | 287 | 6.536 | 11.000 | 10.79 |
+  | residual | L2 | 18 | 28.11 | - | 40.39 |
+  | residual | L1 | 46 | 6.94 | - | 13.86 |
+  | residual | Huber | 232 | 6.642 | 11.076 | 11.16 |
+
+  Rule declared before looking: lowest validation MAE; ties within 1 % broken by validation RMSE. L1 and
+  Huber tie (0.19 %), Huber has the lower RMSE: **default = ratio target, Huber loss**. The residual mode
+  (learn a correction of the mean of the last four same-slot values) is kept as an option; it was not
+  better here. Best baseline on the same data: 8.46 (val) and 15.83 (test).
+- **Result (offices 2016-2017, 100 buildings, run `offices_gbm`, test_both = unseen buildings and period):**
+  MAE 10.79 vs 15.83 for the best baseline (naive_lag_24): -31.9 %; RMSE -32.8 %; median CV(RMSE) -31.7 %;
+  wins in 24 of 25 test buildings. Holding out whole sites (`offices_gbm_by_site`): MAE -24.4 %, RMSE
+  -16.5 %, median CV(RMSE) -37.6 %, wins in 29 of 30 buildings. Gate passed in both. The 10-90 % band covers
+  77.5 % / 76.4 % of the values (nominal 80 %: slightly narrow).
+- **What drives the model:** the base forecast (mean of the last weeks, 48 %), yesterday's value (20 %) and
+  last week's (10 %); weather ranks low because the lags already carry its effect.
+- **Limitation that matters:** the weather is OBSERVED and stands in for the forecast, so these errors are
+  optimistic. One assignment of buildings to roles per run; variability across assignments not measured;
+  hyperparameters other than loss and target mode are defaults.

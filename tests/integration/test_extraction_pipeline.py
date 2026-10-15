@@ -366,3 +366,46 @@ def test_a_failed_force_rerun_keeps_the_previous_extraction_intact(adapter, path
     with pytest.raises(OSError):
         _run(request, adapter, paths, force=True)
     assert (first.output_dir / "extraction_manifest.json").read_bytes() == before
+
+
+# --- dead or partial meters are screened out -----------------------------------------------------
+
+
+def test_a_building_with_mostly_near_zero_readings_is_excluded(mini_bdg2, tmp_path):
+    csv = mini_bdg2 / "electricity_cleaned.csv"
+    frame = pd.read_csv(csv)
+    frame.loc[frame.index % 2 == 0, "East_office_c"] = 0.0001  # half of all hours "off"
+    frame.to_csv(csv, index=False)
+    adapter = Bdg2Adapter(
+        Bdg2Config(data_dir=mini_bdg2, usage_map={"Office": "office", "Retail": "shop"})
+    )
+    paths = JardikPaths.from_root(tmp_path / "project")
+    result = run_extraction(
+        _request(n_buildings=None, area={"site_ids": ["East"]}), adapter, paths, now=lambda: NOW
+    )
+    excluded = pd.read_parquet(result.output_dir / "excluded_buildings.parquet")
+    row = excluded[excluded["building_id"] == "bdg2:East_office_c"].iloc[0]
+    assert row["step"] == "max_near_zero_ratio" and "near_zero_ratio=0.5" in row["detail"]
+    assert "bdg2:East_office_c" not in set(
+        pd.read_parquet(result.output_dir / "selected_buildings.parquet")["building_id"]
+    )
+    funnel = pd.read_csv(result.output_dir / "debug_counts.csv", sep=";")
+    assert "max_near_zero_ratio" in set(funnel["step"])
+
+
+def test_the_near_zero_limit_can_be_relaxed(mini_bdg2, tmp_path):
+    csv = mini_bdg2 / "electricity_cleaned.csv"
+    frame = pd.read_csv(csv)
+    frame.loc[frame.index % 2 == 0, "East_office_c"] = 0.0001
+    frame.to_csv(csv, index=False)
+    adapter = Bdg2Adapter(Bdg2Config(data_dir=mini_bdg2, usage_map={"Office": "office"}))
+    request = _request(
+        n_buildings=None,
+        area={"site_ids": ["East"]},
+        quality={"max_near_zero_ratio": 1.0},
+    )
+    result = run_extraction(
+        request, adapter, JardikPaths.from_root(tmp_path / "p2"), now=lambda: NOW
+    )
+    selected = pd.read_parquet(result.output_dir / "selected_buildings.parquet")
+    assert "bdg2:East_office_c" in set(selected["building_id"])

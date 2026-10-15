@@ -118,3 +118,25 @@ def test_no_issues_gives_empty_frame_with_columns():
     )
     out = check_geographic_consistency(catalogue, BBOX)
     assert out.empty and list(out.columns) == ["building_id", "issue", "detail"]
+
+
+# --- near-zero readings (partial or dead meters) ------------------------------------------------
+
+
+def test_near_zero_ratio_counts_hours_far_below_the_typical_load():
+    # median of the measured values is 10: 0.0001 is below 1 % of it, 5 is not
+    series = _s([10, 10, 10, 10, 0.0001, 0.0002, 5, 10, 12, 11])
+    stats = summarise_series(series, series, pd.Series(False, index=series.index))
+    assert stats["near_zero_ratio"] == pytest.approx(2 / 10)
+
+
+def test_near_zero_ratio_is_zero_for_a_normal_load_profile_and_ignores_gaps():
+    series = _s([4, 8, 12, 16, 12, 8, 4, NAN, NAN, 10])
+    stats = summarise_series(series, series, pd.Series(False, index=series.index))
+    assert stats["near_zero_ratio"] == 0.0
+
+
+def test_near_zero_ratio_is_nan_without_measurements():
+    series = _s([NAN, NAN])
+    stats = summarise_series(series, series, pd.Series(False, index=series.index))
+    assert np.isnan(stats["near_zero_ratio"])

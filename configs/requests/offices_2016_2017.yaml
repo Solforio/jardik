@@ -1,0 +1,26 @@
+# Two years of office load for the forecasting benchmark (M3).
+name: offices_2y
+task: forecasting
+dataset_id: bdg2
+
+usage_categories: [office]
+n_buildings: 100
+sampling: stratified_site   # spread the buildings over the sites
+seed: 42
+
+start: 2016-01-01
+end: 2018-01-01
+granularity_s: 3600
+
+quality:
+  max_missing_ratio: 0.15
+  imputation: linear_short_gaps
+  max_gap_hours: 3
+  max_imputed_ratio: 0.05
+
+weather:
+  variables: [temp_c, dewpoint_c, wind_ms, wind_dir_deg, pressure_msl_hpa]
+  matching: {method: exact, min_coverage: 0.9}
+
+export:
+  format: parquet

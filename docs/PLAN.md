@@ -1,7 +1,7 @@
 ﻿# Project Jardik: Implementation Plan
 
 Status: approved on 2026-10-15. Source of truth for implementation. Changes require an explicit decision logged in `docs/DECISIONS.md`.
-Progress: M0, M1 and M2 done (2026-10-16). Deviations from this plan are listed in `docs/DECISIONS.md`.
+Progress: M0, M1, M2 and M3 done (2026-10-16). Deviations from this plan are listed in `docs/DECISIONS.md`.
 
 ## 1. Context and problem
 
